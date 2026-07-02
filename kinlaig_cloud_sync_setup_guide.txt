@@ -1,0 +1,41 @@
+Kinlaig FS25 Map - Cloud Sync Setup Guide
+
+What this gives you:
+- A shared Google Sheets save point for the Kinlaig interactive map.
+- Friends can load the latest shared version and upload their changes.
+- It is not true live editing like Google Docs; it is shared load/upload syncing.
+
+Files:
+1. kinlaig_cloud_sync_multiplayer_map.html
+2. kinlaig_google_sheets_backend.gs
+
+Setup:
+1. Create a new Google Sheet.
+2. Go to Extensions > Apps Script.
+3. Delete any starter code in Code.gs.
+4. Paste the full contents of kinlaig_google_sheets_backend.gs.
+5. Change this line:
+   const ACCESS_CODE = 'CHANGE-ME';
+   Example:
+   const ACCESS_CODE = 'kinlaig123';
+6. Click Save.
+7. Click Deploy > New deployment.
+8. Choose Web app.
+9. Set Execute as: Me.
+10. Set Who has access: Anyone with the link.
+11. Click Deploy and authorize it.
+12. Copy the Web App URL ending in /exec.
+13. Open kinlaig_cloud_sync_multiplayer_map.html.
+14. Paste the Web App URL into the Cloud Sync panel.
+15. Enter the same shared edit code.
+16. Press Save setup.
+17. Press Upload current map once to create the first cloud save.
+18. Other players open the same HTML file, enter the same URL/code, and press Load from cloud.
+
+Recommended multiplayer habit:
+- Press Load from cloud before editing.
+- Make your changes.
+- Press Upload current map when done.
+- If two people edit at the same time, the last upload wins.
+
+Keep the Web App URL and edit code private. Anyone with both can modify the shared map.
