@@ -4,10 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Kinlaig FS25 Farm Management Map - Cloud Sync</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css" />
 <style>
   :root {
-    --bg:#0f172a; --panel:#111827; --panel2:#1f2937; --line:#334155; --text:#e5e7eb; --muted:#9ca3af;
-    --accent:#38bdf8; --green:#22c55e; --yellow:#facc15; --red:#fb7185;
+    --bg:#0b0f14; --panel:#111827; --panel2:#1f2937; --line:#2a3441; --text:#f1f5f2; --muted:#8b96a5;
+    --accent:#1d9e75; --accent-rgb:29,158,117; --coral:#d85a30; --purple:#534ab7; --green:#22c55e; --yellow:#facc15; --red:#fb7185;
   }
   * { box-sizing:border-box; }
   html, body { height:100%; margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
@@ -18,12 +19,20 @@
   h1 { margin:0 0 6px; font-size:22px; letter-spacing:.2px; }
   .sub { color:var(--muted); font-size:13px; line-height:1.45; margin-bottom:14px; }
   .card { background:rgba(31,41,55,.88); border:1px solid rgba(148,163,184,.38); border-radius:16px; padding:14px; margin:12px 0; box-shadow:0 10px 30px rgba(0,0,0,.24); }
+  .tabNav { display:flex; gap:4px; background:#0b0f14; border-radius:12px; padding:4px; margin:14px 0 4px; }
+  .tabBtn { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 4px; border-radius:9px; border:none; background:transparent; color:var(--muted); font-size:12px; cursor:pointer; transition:.15s ease; }
+  .tabBtn i { font-size:17px; }
+  .tabBtn:hover { color:var(--text); transform:none; }
+  .tabBtn.active { background:var(--accent); color:#e1f5ee; }
+  .tabBtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .tabPanel { display:none; }
+  .tabPanel.active { display:block; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   button, select, input, textarea { font:inherit; }
   button { border:1px solid rgba(148,163,184,.45); background:#0b1220; color:var(--text); border-radius:11px; padding:8px 10px; cursor:pointer; transition:.15s ease; }
   button:hover { border-color:var(--accent); transform:translateY(-1px); }
   button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  button.primary { background:linear-gradient(180deg, #0ea5e9, #0369a1); border-color:#38bdf8; }
+  button.primary { background:linear-gradient(180deg, #1d9e75, #0f6e56); border-color:#5dcaa5; }
   button.danger { border-color:rgba(248,113,113,.6); color:#fecaca; }
   input, select, textarea { width:100%; border:1px solid rgba(148,163,184,.42); background:#0b1220; color:var(--text); border-radius:12px; padding:9px 10px; outline:none; }
   input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -60,16 +69,16 @@
     font-size:11px; font-weight:800; color:#fff; letter-spacing:.2px;
     line-height:1.3; pointer-events:none;
   }
-  .marker:hover { border-color:var(--accent); background:rgba(56,189,248,.18); box-shadow:0 0 0 3px rgba(56,189,248,.18); z-index:15; transform:scale(1.1); }
-  .marker:focus-visible { outline:none; border-color:var(--accent); background:rgba(56,189,248,.24); box-shadow:0 0 0 4px rgba(56,189,248,.45); z-index:30; }
-  .marker.selected { border-color:var(--accent); background:rgba(56,189,248,.24); box-shadow:0 0 0 4px rgba(56,189,248,.24); z-index:25; }
+  .marker:hover { border-color:var(--accent); background:rgba(var(--accent-rgb),.18); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.18); z-index:15; transform:scale(1.1); }
+  .marker:focus-visible { outline:none; border-color:var(--accent); background:rgba(var(--accent-rgb),.24); box-shadow:0 0 0 4px rgba(var(--accent-rgb),.45); z-index:30; }
+  .marker.selected { border-color:var(--accent); background:rgba(var(--accent-rgb),.24); box-shadow:0 0 0 4px rgba(var(--accent-rgb),.24); z-index:25; }
   .marker.planned { border-color:var(--yellow); background:rgba(250,204,21,.16); box-shadow:0 0 0 3px rgba(250,204,21,.18); }
   .marker.ownedBy { border-color:var(--owner-color, #38bdf8); background:var(--owner-bg, rgba(56,189,248,.16)); box-shadow:0 0 0 6px var(--owner-bg, rgba(56,189,248,.16)); }
   .marker.ownedBy .owner-dot { display:block; }
   .owner-dot { display:none; position:absolute; left:-7px; top:-7px; width:11px; height:11px; border-radius:999px; background:var(--owner-color, #38bdf8); border:2px solid white; box-shadow:0 2px 8px rgba(0,0,0,.65); pointer-events:none; }
   .owner-name { display:none; position:absolute; left:50%; top:24px; transform:translateX(-50%); white-space:nowrap; max-width:150px; overflow:hidden; text-overflow:ellipsis; background:rgba(15,23,42,.88); border:1px solid var(--owner-color, #38bdf8); color:white; border-radius:999px; padding:2px 7px; font-size:11px; font-weight:800; text-shadow:0 1px 2px black; pointer-events:none; }
   #canvas.showOwnerNames .marker.ownedBy .owner-name { display:block; }
-  #canvas.showHits .marker { border-color:rgba(56,189,248,.55); background:rgba(56,189,248,.10); }
+  #canvas.showHits .marker { border-color:rgba(var(--accent-rgb),.55); background:rgba(var(--accent-rgb),.10); }
   #canvas.showHits .marker.land { border-color:rgba(250,204,21,.45); background:rgba(250,204,21,.08); }
   .topbar { position:absolute; z-index:50; left:16px; top:16px; right:16px; display:flex; gap:8px; justify-content:space-between; pointer-events:none; }
   .topbar .cluster { display:flex; gap:8px; pointer-events:auto; }
@@ -94,7 +103,7 @@
   .modeGrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .modeBtn { text-align:left; min-height:46px; padding:9px 10px; line-height:1.15; }
   .modeBtn small { display:block; color:var(--muted); font-size:12px; margin-top:3px; }
-  .modeBtn.active { border-color:var(--accent); background:linear-gradient(180deg, rgba(14,165,233,.28), rgba(3,105,161,.24)); box-shadow:0 0 0 3px rgba(56,189,248,.12); }
+  .modeBtn.active { border-color:var(--accent); background:linear-gradient(180deg, rgba(93,202,165,.28), rgba(15,110,86,.24)); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12); }
   .legend { display:grid; gap:6px; margin-top:12px; padding-top:10px; border-top:1px solid rgba(148,163,184,.28); }
   .legendRow { display:grid; grid-template-columns:16px minmax(0,1fr) auto; gap:8px; align-items:center; font-size:12px; color:#d1d5db; }
   .legendSwatch { width:14px; height:14px; border-radius:999px; border:2px solid rgba(255,255,255,.85); box-shadow:0 1px 6px rgba(0,0,0,.5); }
@@ -138,100 +147,120 @@
       <button id="dismissIntro">Got it</button>
     </div>
 
-    <div class="card">
-      <div class="row">
-        <button class="primary" id="resetView">Reset view</button>
-        <button id="fitView">Fit map</button>
-        <button id="zoomIn" aria-label="Zoom in">+</button>
-        <button id="zoomOut" aria-label="Zoom out">−</button>
-      </div>
-      <p class="hint">Drag to pan. Mouse wheel or buttons to zoom. Click directly on a field/land number to plan it.</p>
+    <div class="tabNav" role="tablist">
+      <button type="button" class="tabBtn active" data-tab="map" role="tab" aria-selected="true"><i class="ti ti-map" aria-hidden="true"></i>Map</button>
+      <button type="button" class="tabBtn" data-tab="fields" role="tab" aria-selected="false"><i class="ti ti-list-details" aria-hidden="true"></i>Fields</button>
+      <button type="button" class="tabBtn" data-tab="cloud" role="tab" aria-selected="false"><i class="ti ti-cloud" aria-hidden="true"></i>Cloud</button>
     </div>
 
-    <div class="card">
-      <label for="search">Search</label>
-      <input id="search" placeholder="Example: field 25, area 70" />
-      <p class="hint">Press Enter to jump straight to the first match.</p>
-      <div class="toggles" style="margin-top:10px">
-        <label class="check"><input type="checkbox" data-layer="fields" checked> Fields 1–48</label>
-        <label class="check"><input type="checkbox" data-layer="land" checked> Land 49–76</label>
-        <label class="check"><input type="checkbox" id="gridToggle"> Grid</label>
-        <label class="check"><input type="checkbox" id="hitToggle"> Show hitboxes</label>
-        <label class="check"><input type="checkbox" id="ownerToggle" checked> Mode colours</label>
-        <label class="check"><input type="checkbox" id="ownerNameToggle" checked> Mode labels</label>
-      </div>
-    </div>
-
-    <div class="card">
-      <b>Map mode</b>
-      <p class="hint">Switch what the coloured overlays mean. Blank fields stay visually hidden in each mode until you add the relevant info. The printed map numbers are still clickable, and the “Show hitboxes” toggle can reveal all clickable zones when you need to edit blanks.</p>
-      <div class="modeGrid">
-        <button type="button" class="modeBtn active" data-mode="owner">Owner View<small>who owns what</small></button>
-        <button type="button" class="modeBtn" data-mode="crop">Crop View<small>what is planted/planned</small></button>
-        <button type="button" class="modeBtn" data-mode="soil">Soil View<small>pH + nitrogen</small></button>
-        <button type="button" class="modeBtn" data-mode="work">Work View<small>what needs doing</small></button>
-      </div>
-      <div id="modeLegend" class="legend"></div>
-    </div>
-
-    <div class="card stats">
-      <div class="stat"><b id="plannedCount">0</b><span>markers with notes/plans</span></div>
-      <div class="stat"><b id="ownedCount">0</b><span>assigned to owners</span></div>
-    </div>
-
-    <div class="card">
-      <b>Ownership colours</b>
-      <p class="hint">Add player/farm names here, give each one a colour, then assign that owner to fields in the field details section.</p>
-      <div class="ownerCreate">
-        <div>
-          <label for="newOwnerName">New owner</label>
-          <input id="newOwnerName" placeholder="Example: Keiran, Dad, North Farm" />
+    <div class="tabPanel active" data-panel="map">
+      <div class="card">
+        <div class="row">
+          <button class="primary" id="resetView">Reset view</button>
+          <button id="fitView">Fit map</button>
+          <button id="zoomIn" aria-label="Zoom in">+</button>
+          <button id="zoomOut" aria-label="Zoom out">−</button>
         </div>
-        <div>
-          <label for="newOwnerColor">Colour</label>
-          <input id="newOwnerColor" type="color" value="#22c55e" />
+        <p class="hint">Drag to pan. Mouse wheel or buttons to zoom. Click directly on a field/land number to plan it.</p>
+      </div>
+
+      <div class="card">
+        <label for="search">Search</label>
+        <input id="search" placeholder="Example: field 25, area 70" />
+        <p class="hint">Press Enter to jump straight to the first match.</p>
+        <div class="toggles" style="margin-top:10px">
+          <label class="check"><input type="checkbox" data-layer="fields" checked> Fields 1–48</label>
+          <label class="check"><input type="checkbox" data-layer="land" checked> Land 49–76</label>
+          <label class="check"><input type="checkbox" id="gridToggle"> Grid</label>
+          <label class="check"><input type="checkbox" id="hitToggle"> Show hitboxes</label>
+          <label class="check"><input type="checkbox" id="ownerToggle" checked> Mode colours</label>
+          <label class="check"><input type="checkbox" id="ownerNameToggle" checked> Mode labels</label>
         </div>
-        <button id="addOwnerBtn">Add</button>
       </div>
-      <div class="ownerList" id="ownersList"></div>
-    </div>
 
-    <div class="card" id="selectedCard">
-      <h2 class="selectedTitle">Nothing selected</h2>
-      <p class="hint">Click a field or land number on the map.</p>
-    </div>
-
-    <div class="card">
-      <div class="row">
-        <button id="exportBtn">Export backup</button>
-        <button id="importBtn">Import</button>
-        <input type="file" id="importFile" accept="application/json" style="display:none" />
-        <button class="danger" id="clearAll">Clear all</button>
+      <div class="card">
+        <b>Map mode</b>
+        <p class="hint">Switch what the coloured overlays mean. Blank fields stay visually hidden in each mode until you add the relevant info. The printed map numbers are still clickable, and the “Show hitboxes” toggle can reveal all clickable zones when you need to edit blanks.</p>
+        <div class="modeGrid">
+          <button type="button" class="modeBtn active" data-mode="owner">Owner View<small>who owns what</small></button>
+          <button type="button" class="modeBtn" data-mode="crop">Crop View<small>what is planted/planned</small></button>
+          <button type="button" class="modeBtn" data-mode="soil">Soil View<small>pH + nitrogen</small></button>
+          <button type="button" class="modeBtn" data-mode="work">Work View<small>what needs doing</small></button>
+        </div>
+        <div id="modeLegend" class="legend"></div>
       </div>
-      <p class="hint">Your notes save in this browser using local storage. Export a JSON backup before clearing browser data.</p>
-    </div>
 
-    <div class="card">
-      <b>Cloud sync / multiplayer beta</b>
-      <p class="hint">Connect this map to a Google Sheets Apps Script web app. Everyone uses the same URL and edit code, then loads/uploads the shared farm data.</p>
-      <label for="cloudUrl">Apps Script Web App URL</label>
-      <input id="cloudUrl" placeholder="Paste the /exec web app URL here" />
-      <label for="cloudToken">Shared edit code</label>
-      <input id="cloudToken" placeholder="Same code you put in the Apps Script" />
-      <label for="cloudUserName">Your name</label>
-      <input id="cloudUserName" placeholder="Shown to others as who last updated the map" />
-      <div class="row" style="margin-top:10px">
-        <button id="saveCloudSettings">Save setup</button>
-        <button id="loadCloudBtn">Load from cloud</button>
-        <button class="primary" id="saveCloudBtn">Upload current map</button>
+      <div class="card stats">
+        <div class="stat"><b id="plannedCount">0</b><span>markers with notes/plans</span></div>
+        <div class="stat"><b id="ownedCount">0</b><span>assigned to owners</span></div>
       </div>
-      <label class="check" style="margin-top:10px"><input type="checkbox" id="autoCloudToggle"> Auto-upload after local edits</label>
-      <div id="cloudStatus" class="cloudStatus">Cloud is not set up yet. Local saving still works.</div>
+
+      <div class="card" id="selectedCard">
+        <h2 class="selectedTitle">Nothing selected</h2>
+        <p class="hint">Click a field or land number on the map.</p>
+      </div>
     </div>
 
-    <div class="card">
-      <b>Marker list</b>
-      <div class="list" id="resultList"></div>
+    <div class="tabPanel" data-panel="fields">
+      <div class="card">
+        <div id="ownersListView">
+          <b>Players</b>
+          <p class="hint">Add player/farm names here, give each one a colour, then click a player to see their fields.</p>
+          <div class="ownerCreate">
+            <div>
+              <label for="newOwnerName">New owner</label>
+              <input id="newOwnerName" placeholder="Example: Keiran, Dad, North Farm" />
+            </div>
+            <div>
+              <label for="newOwnerColor">Colour</label>
+              <input id="newOwnerColor" type="color" value="#22c55e" />
+            </div>
+            <button id="addOwnerBtn">Add</button>
+          </div>
+          <div class="ownerList" id="ownersList"></div>
+        </div>
+        <div id="ownerFieldsView" style="display:none">
+          <button id="backToOwners"><i class="ti ti-arrow-left" aria-hidden="true"></i> All players</button>
+          <div id="ownerFieldsHeader" style="display:flex; align-items:center; gap:8px; margin:12px 0 4px; font-size:16px; font-weight:500;"></div>
+          <p class="hint">Click a field to see and edit its full details.</p>
+          <div class="list" id="ownerFieldsList"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <b>All fields</b>
+        <div class="list" id="resultList"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button id="exportBtn">Export backup</button>
+          <button id="importBtn">Import</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none" />
+          <button class="danger" id="clearAll">Clear all</button>
+        </div>
+        <p class="hint">Your notes save in this browser using local storage. Export a JSON backup before clearing browser data.</p>
+      </div>
+    </div>
+
+    <div class="tabPanel" data-panel="cloud">
+      <div class="card">
+        <b>Cloud sync / multiplayer beta</b>
+        <p class="hint">Connect this map to a Google Sheets Apps Script web app. Everyone uses the same URL and edit code, then loads/uploads the shared farm data.</p>
+        <label for="cloudUrl">Apps Script Web App URL</label>
+        <input id="cloudUrl" placeholder="Paste the /exec web app URL here" />
+        <label for="cloudToken">Shared edit code</label>
+        <input id="cloudToken" placeholder="Same code you put in the Apps Script" />
+        <label for="cloudUserName">Your name</label>
+        <input id="cloudUserName" placeholder="Shown to others as who last updated the map" />
+        <div class="row" style="margin-top:10px">
+          <button id="saveCloudSettings">Save setup</button>
+          <button id="loadCloudBtn">Load from cloud</button>
+          <button class="primary" id="saveCloudBtn">Upload current map</button>
+        </div>
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="autoCloudToggle"> Auto-upload after local edits</label>
+        <div id="cloudStatus" class="cloudStatus">Cloud is not set up yet. Local saving still works.</div>
+      </div>
     </div>
   </aside>
 
@@ -288,6 +317,7 @@ let suppressCloudAuto = false;
 let cloudAutoTimer = null;
 const ownerPalette = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#ef4444", "#eab308", "#14b8a6", "#ec4899", "#84cc16", "#6366f1"];
 let selected = null;
+let selectedOwnerFilter = null;
 let scale = 1, tx = 0, ty = 0;
 let dragging = false, startX = 0, startY = 0, startTx = 0, startTy = 0;
 const activePointers = new Map();
@@ -796,10 +826,10 @@ function renderOwners() {
   const entries = Object.entries(owners).sort((a,b) => a[1].name.localeCompare(b[1].name));
   list.innerHTML = entries.length ? entries.map(([id,o]) => `
     <div class="ownerRow" data-owner-id="${id}">
-      <span class="ownerSwatch" style="background:${o.color}"></span>
+      <span class="ownerSwatch" data-owner-view="${id}" role="button" tabindex="0" aria-label="View ${escapeHTML(o.name)}'s fields" style="background:${o.color}; cursor:pointer;"></span>
       <div>
         <input type="text" data-owner-name="${id}" value="${escapeHTML(o.name)}" />
-        <div class="ownerMeta">${countOwnerAssignments(id)} assigned</div>
+        <div class="ownerMeta" data-owner-view="${id}" role="button" tabindex="0" style="cursor:pointer; color:var(--accent); display:flex; align-items:center; gap:3px;">${countOwnerAssignments(id)} assigned <i class="ti ti-chevron-right" aria-hidden="true" style="font-size:12px;"></i></div>
       </div>
       <input type="color" data-owner-color="${id}" value="${o.color}" />
       <button class="danger" data-owner-delete="${id}">Delete</button>
@@ -810,6 +840,10 @@ function renderOwners() {
   list.querySelectorAll('[data-owner-color]').forEach(input => {
     input.onchange = () => { const id = input.dataset.ownerColor; owners[id].color = input.value; saveOwners(); };
   });
+  list.querySelectorAll('[data-owner-view]').forEach(el => {
+    el.onclick = () => showOwnerFields(el.dataset.ownerView);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showOwnerFields(el.dataset.ownerView); } });
+  });
   list.querySelectorAll('[data-owner-delete]').forEach(btn => {
     btn.onclick = () => {
       const id = btn.dataset.ownerDelete;
@@ -818,8 +852,38 @@ function renderOwners() {
       delete owners[id];
       Object.keys(plans).forEach(planId => { if (plans[planId].owner === id) plans[planId].owner = ''; if (!hasPlan(planId)) delete plans[planId]; });
       localStorage.setItem('kinlaig_fs25_clean_plans_v1', JSON.stringify(plans));
+      if (selectedOwnerFilter === id) backToOwnersList();
       saveOwners(); updateStats();
     };
+  });
+  if (selectedOwnerFilter) renderOwnerFieldsList();
+}
+function showOwnerFields(id) {
+  selectedOwnerFilter = id;
+  document.getElementById('ownersListView').style.display = 'none';
+  document.getElementById('ownerFieldsView').style.display = 'block';
+  const o = owners[id];
+  document.getElementById('ownerFieldsHeader').innerHTML = o ? `<span class="ownerSwatch" style="background:${o.color}"></span>${escapeHTML(o.name)}` : '';
+  renderOwnerFieldsList();
+}
+function backToOwnersList() {
+  selectedOwnerFilter = null;
+  document.getElementById('ownersListView').style.display = 'block';
+  document.getElementById('ownerFieldsView').style.display = 'none';
+}
+function renderOwnerFieldsList() {
+  const id = selectedOwnerFilter;
+  const listEl = document.getElementById('ownerFieldsList');
+  if (!id || !listEl) return;
+  const fields = markersData.filter(m => getPlan(m.id).owner === id);
+  listEl.innerHTML = fields.length ? fields.map(m => {
+    const p = getPlan(m.id);
+    const bits = [p.status, p.crop, p.size, p.nextJob].filter(Boolean).join(' · ');
+    return `<div class="item" data-id="${m.id}" role="button" tabindex="0" aria-label="${escapeHTML(m.title)}"><span>${m.title}</span><span class="badge">${escapeHTML(bits || 'no details yet')}</span></div>`;
+  }).join('') : `<p class="hint">No fields assigned to this player yet.</p>`;
+  listEl.querySelectorAll('.item[data-id]').forEach(el => {
+    el.onclick = () => { selectMarker(el.dataset.id, true); switchTab('map'); };
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMarker(el.dataset.id, true); switchTab('map'); } });
   });
 }
 function addOwnerFromInputs() {
@@ -850,9 +914,9 @@ function renderList() {
     return `<div class="item" data-id="${m.id}" role="button" tabindex="0" aria-label="${escapeHTML(m.title)}"><span>${m.title}</span><span class="badge" ${ownerStyle}>${escapeHTML(bits || (relevant ? groupName(m.group) : 'hidden'))}</span></div>`;
   }).join('') || `<div class="item"><span>No matches</span></div>`;
   resultList.querySelectorAll('.item[data-id]').forEach(el => {
-    el.onclick = () => selectMarker(el.dataset.id, true);
+    el.onclick = () => { selectMarker(el.dataset.id, true); switchTab('map'); };
     el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMarker(el.dataset.id, true); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMarker(el.dataset.id, true); switchTab('map'); }
     });
   });
 }
@@ -914,6 +978,7 @@ document.getElementById('ownerToggle').onchange = paintMarkers;
 document.getElementById('ownerNameToggle').onchange = paintMarkers;
 document.querySelectorAll('.modeBtn').forEach(btn => btn.onclick = () => setMapMode(btn.dataset.mode));
 document.getElementById('addOwnerBtn').onclick = addOwnerFromInputs;
+document.getElementById('backToOwners').onclick = backToOwnersList;
 document.getElementById('newOwnerName').addEventListener('keydown', e => { if (e.key === 'Enter') addOwnerFromInputs(); });
 document.querySelectorAll('input[data-layer]').forEach(cb => cb.onchange = paintMarkers);
 document.getElementById('search').addEventListener('input', renderList);
@@ -931,6 +996,11 @@ document.getElementById('dismissIntro').onclick = () => {
   localStorage.setItem('kinlaig_fs25_seen_intro_v1', 'true');
   document.getElementById('introCard').style.display = 'none';
 };
+function switchTab(tab) {
+  document.querySelectorAll('.tabBtn').forEach(b => { b.classList.toggle('active', b.dataset.tab === tab); b.setAttribute('aria-selected', String(b.dataset.tab === tab)); });
+  document.querySelectorAll('.tabPanel').forEach(p => p.classList.toggle('active', p.dataset.panel === tab));
+}
+document.querySelectorAll('.tabBtn').forEach(btn => { btn.onclick = () => switchTab(btn.dataset.tab); });
 
 document.getElementById('exportBtn').onclick = () => {
   const backup = backupObject();
