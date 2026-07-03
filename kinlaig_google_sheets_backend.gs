@@ -54,22 +54,24 @@ function handleRequest_(params) {
       JSON.parse(dataText);
 
       // Guard against two players uploading at the same moment and interleaving writes.
+      const now = new Date();
       const lock = LockService.getScriptLock();
       lock.waitLock(10000);
       try {
         const sheet = getSheet_();
         sheet.getRange(1, 1, 1, 4).setValues([['updatedAt', 'updatedBy', 'version', 'data']]);
-        sheet.getRange(2, 1, 1, 4).setValues([[new Date(), params.user || '', 'v1', dataText]]);
+        sheet.getRange(2, 1, 1, 4).setValues([[now, params.user || '', 'v1', dataText]]);
         sheet.autoResizeColumns(1, 3);
       } finally {
         lock.releaseLock();
       }
 
-      return { ok: true, savedAt: new Date().toISOString() };
+      return { ok: true, savedAt: now.toISOString() };
     }
 
     const sheet = getSheet_();
-    const dataText = sheet.getRange(2, 4).getValue();
+    const row = sheet.getRange(2, 1, 1, 4).getValues()[0];
+    const [updatedAtRaw, updatedBy, version, dataText] = row;
     if (!dataText) {
       return { ok: true, data: null, message: 'No cloud save exists yet' };
     }
@@ -77,6 +79,8 @@ function handleRequest_(params) {
     return {
       ok: true,
       data: JSON.parse(dataText),
+      updatedAt: updatedAtRaw ? new Date(updatedAtRaw).toISOString() : null,
+      updatedBy: updatedBy || '',
       loadedAt: new Date().toISOString()
     };
   } catch (err) {

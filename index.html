@@ -127,6 +127,17 @@
     <div class="sub">Clean Kinlaig farm-management map with switchable views for owners, crops, soil and work status. The field/area numbers you see are the actual printed map numbers; the clickable hitboxes sit over those numbers.</div>
     <div class="sub">Share this map: <a href="https://keiranpoly2611.github.io/Kinlaig-Map-FS25/" style="color:var(--accent)">https://keiranpoly2611.github.io/Kinlaig-Map-FS25/</a></div>
 
+    <div class="card" id="introCard" style="display:none">
+      <b>Quick start</b>
+      <p class="hint">
+        Click a field/land number to set its owner, crop, status, and notes.<br>
+        Switch <b>Map mode</b> below to see owners, crops, soil, or work at a glance.<br>
+        Type in <b>Search</b> and press Enter to jump straight to a field.<br>
+        Set up <b>Cloud sync</b> so everyone sees the same shared map.
+      </p>
+      <button id="dismissIntro">Got it</button>
+    </div>
+
     <div class="card">
       <div class="row">
         <button class="primary" id="resetView">Reset view</button>
@@ -140,6 +151,7 @@
     <div class="card">
       <label for="search">Search</label>
       <input id="search" placeholder="Example: field 25, area 70" />
+      <p class="hint">Press Enter to jump straight to the first match.</p>
       <div class="toggles" style="margin-top:10px">
         <label class="check"><input type="checkbox" data-layer="fields" checked> Fields 1–48</label>
         <label class="check"><input type="checkbox" data-layer="land" checked> Land 49–76</label>
@@ -206,6 +218,8 @@
       <input id="cloudUrl" placeholder="Paste the /exec web app URL here" />
       <label for="cloudToken">Shared edit code</label>
       <input id="cloudToken" placeholder="Same code you put in the Apps Script" />
+      <label for="cloudUserName">Your name</label>
+      <input id="cloudUserName" placeholder="Shown to others as who last updated the map" />
       <div class="row" style="margin-top:10px">
         <button id="saveCloudSettings">Save setup</button>
         <button id="loadCloudBtn">Load from cloud</button>
@@ -267,7 +281,9 @@ let plans = JSON.parse(localStorage.getItem('kinlaig_fs25_clean_plans_v1') || '{
 let owners = JSON.parse(localStorage.getItem('kinlaig_fs25_owners_v1') || '{}');
 let cloudUrl = localStorage.getItem('kinlaig_fs25_cloud_url_v1') || '';
 let cloudToken = localStorage.getItem('kinlaig_fs25_cloud_token_v1') || '';
+let cloudUserName = localStorage.getItem('kinlaig_fs25_cloud_user_v1') || '';
 let autoCloud = localStorage.getItem('kinlaig_fs25_cloud_auto_v1') === 'true';
+let lastCloudSeen = null;
 let suppressCloudAuto = false;
 let cloudAutoTimer = null;
 const ownerPalette = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#ef4444", "#eab308", "#14b8a6", "#ec4899", "#84cc16", "#6366f1"];
@@ -316,12 +332,17 @@ function getCloudUrl() {
 function getCloudToken() {
   return (document.getElementById('cloudToken')?.value || cloudToken || '').trim();
 }
+function getCloudUserName() {
+  return (document.getElementById('cloudUserName')?.value || cloudUserName || '').trim();
+}
 function saveCloudSettings() {
   cloudUrl = getCloudUrl();
   cloudToken = getCloudToken();
+  cloudUserName = getCloudUserName();
   autoCloud = !!document.getElementById('autoCloudToggle')?.checked;
   localStorage.setItem('kinlaig_fs25_cloud_url_v1', cloudUrl);
   localStorage.setItem('kinlaig_fs25_cloud_token_v1', cloudToken);
+  localStorage.setItem('kinlaig_fs25_cloud_user_v1', cloudUserName);
   localStorage.setItem('kinlaig_fs25_cloud_auto_v1', String(autoCloud));
   setCloudStatus(cloudUrl ? 'Cloud setup saved on this device. Use Load from cloud or Upload current map.' : 'Cloud URL is empty. Local saving still works.', cloudUrl ? 'ok' : 'warn');
 }
@@ -348,7 +369,9 @@ function cloudLoad() {
       if (!response || response.ok === false) throw new Error(response?.error || 'Cloud returned an error');
       if (!response.data) { setCloudStatus('Cloud is connected, but there is no saved map data yet. Upload your current map first.', 'warn'); return; }
       applyBackupObject(response.data);
-      setCloudStatus('Loaded shared cloud data. Local map is now updated.', 'ok');
+      lastCloudSeen = { updatedAt: response.updatedAt || null, updatedBy: response.updatedBy || '' };
+      const who = response.updatedBy ? ` Last updated by ${response.updatedBy}${response.updatedAt ? ' at ' + new Date(response.updatedAt).toLocaleString() : ''}.` : '';
+      setCloudStatus('Loaded shared cloud data. Local map is now updated.' + who, 'ok');
     } catch (err) {
       setCloudStatus('Cloud load failed: ' + err.message, 'bad');
     }
@@ -358,13 +381,40 @@ function cloudLoad() {
   setCloudStatus('Loading from cloud…');
   document.body.appendChild(script);
 }
+function cloudPeek(onDone) {
+  const url = getCloudUrl();
+  if (!url) { onDone(null); return; }
+  const cb = 'kinlaigCloudPeek_' + Math.random().toString(36).slice(2);
+  const script = document.createElement('script');
+  const sep = url.includes('?') ? '&' : '?';
+  const timeout = setTimeout(() => { cleanup(); onDone(null); }, 8000);
+  function cleanup() { clearTimeout(timeout); try { delete window[cb]; } catch(e) { window[cb] = undefined; } script.remove(); }
+  window[cb] = (response) => { cleanup(); onDone(response && response.ok !== false ? response : null); };
+  script.onerror = () => { cleanup(); onDone(null); };
+  script.src = url + sep + 'mode=load&callback=' + encodeURIComponent(cb) + '&token=' + encodeURIComponent(getCloudToken()) + '&_=' + Date.now();
+  document.body.appendChild(script);
+}
 function cloudSave(silent=false) {
   saveCloudSettings();
   const url = getCloudUrl();
   if (!url) { if (!silent) setCloudStatus('Paste your Apps Script Web App URL first.', 'warn'); return; }
+  if (silent || !lastCloudSeen) { doCloudSave(silent); return; }
+  cloudPeek(response => {
+    if (response && response.updatedAt && response.updatedAt !== lastCloudSeen.updatedAt) {
+      const who = response.updatedBy || 'someone';
+      const when = new Date(response.updatedAt).toLocaleString();
+      const proceed = confirm(`Cloud was updated by ${who} at ${when}, after you last loaded. Uploading now will overwrite their changes.\n\nUpload anyway?`);
+      if (!proceed) { setCloudStatus('Upload cancelled. Press "Load from cloud" to see the latest changes first.', 'warn'); return; }
+    }
+    doCloudSave(silent);
+  });
+}
+function doCloudSave(silent=false) {
+  const url = getCloudUrl();
   const payload = new URLSearchParams();
   payload.set('mode', 'save');
   payload.set('token', getCloudToken());
+  payload.set('user', getCloudUserName());
   payload.set('data', JSON.stringify(backupObject()));
   if (!silent) setCloudStatus('Uploading current map to cloud…');
   fetch(url, { method: 'POST', body: payload })
@@ -374,6 +424,7 @@ function cloudSave(silent=false) {
       try { response = JSON.parse(text); }
       catch (e) { throw new Error('Cloud returned an unexpected response'); }
       if (!response || response.ok === false) throw new Error(response?.error || 'Cloud rejected the upload');
+      if (response.savedAt) lastCloudSeen = { updatedAt: response.savedAt, updatedBy: getCloudUserName() };
       setCloudStatus('Uploaded and confirmed by the cloud. Other players should press Load from cloud to see it.', 'ok');
     })
     .catch(() => {
@@ -401,9 +452,11 @@ function cloudSaveFallback_(payload) {
 function initCloudUI() {
   const urlEl = document.getElementById('cloudUrl');
   const tokenEl = document.getElementById('cloudToken');
+  const nameEl = document.getElementById('cloudUserName');
   const autoEl = document.getElementById('autoCloudToggle');
   if (urlEl) urlEl.value = cloudUrl;
   if (tokenEl) tokenEl.value = cloudToken;
+  if (nameEl) nameEl.value = cloudUserName;
   if (autoEl) autoEl.checked = autoCloud;
   document.getElementById('saveCloudSettings').onclick = saveCloudSettings;
   document.getElementById('loadCloudBtn').onclick = cloudLoad;
@@ -852,7 +905,20 @@ document.getElementById('addOwnerBtn').onclick = addOwnerFromInputs;
 document.getElementById('newOwnerName').addEventListener('keydown', e => { if (e.key === 'Enter') addOwnerFromInputs(); });
 document.querySelectorAll('input[data-layer]').forEach(cb => cb.onchange = paintMarkers);
 document.getElementById('search').addEventListener('input', renderList);
+document.getElementById('search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return;
+  const match = markersData.find(m => m.title.toLowerCase() === q || m.label.toLowerCase() === q)
+    || markersData.find(m => m.title.toLowerCase().includes(q) || (m.group === 'fields' && ('field '+m.label).includes(q)) || (m.group === 'land' && ('area '+m.label).includes(q)));
+  if (match) selectMarker(match.id, true);
+});
 document.getElementById('openSide').onclick = () => sidebar.classList.toggle('open');
+if (!localStorage.getItem('kinlaig_fs25_seen_intro_v1')) document.getElementById('introCard').style.display = 'block';
+document.getElementById('dismissIntro').onclick = () => {
+  localStorage.setItem('kinlaig_fs25_seen_intro_v1', 'true');
+  document.getElementById('introCard').style.display = 'none';
+};
 
 document.getElementById('exportBtn').onclick = () => {
   const backup = backupObject();
