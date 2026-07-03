@@ -656,7 +656,6 @@ function renderMarkers() {
     el.setAttribute('role', 'button');
     el.setAttribute('aria-label', m.title);
     el.innerHTML = `<span class="marker-label">${escapeHTML(m.label)}</span><span class="owner-dot"></span><span class="owner-name"></span>`;
-    el.addEventListener('click', (e) => { e.stopPropagation(); selectMarker(m.id, true); });
     el.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMarker(m.id, true); }
     });
@@ -858,14 +857,18 @@ function renderList() {
   });
 }
 
+let tapCandidate = null, tapStartX = 0, tapStartY = 0, tapMoved = false, wasMultiTouch = false;
 viewport.addEventListener('pointerdown', e => {
   try { viewport.setPointerCapture(e.pointerId); } catch (err) {}
   activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if (activePointers.size === 1) {
     dragging = true; startX=e.clientX; startY=e.clientY; startTx=tx; startTy=ty;
     viewport.classList.add('dragging');
+    tapCandidate = e.target.closest('.marker');
+    tapStartX = e.clientX; tapStartY = e.clientY; tapMoved = false; wasMultiTouch = false;
   } else if (activePointers.size === 2) {
     dragging = false; viewport.classList.remove('dragging');
+    wasMultiTouch = true;
     const pts = [...activePointers.values()];
     pinchLastDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
   }
@@ -881,15 +884,24 @@ viewport.addEventListener('pointermove', e => {
     if (pinchLastDist > 0 && dist > 0) zoomAt(midX, midY, dist / pinchLastDist);
     pinchLastDist = dist;
   } else if (dragging) {
+    if (Math.hypot(e.clientX-tapStartX, e.clientY-tapStartY) > 6) tapMoved = true;
     tx = startTx + (e.clientX-startX); ty = startTy + (e.clientY-startY); applyTransform();
   }
+});
+// setPointerCapture on the viewport can stop the browser's native click event from
+// reaching the marker underneath the pointer, so tap-to-select is handled manually here
+// instead of relying on a click listener on each marker.
+viewport.addEventListener('pointerup', e => {
+  if (activePointers.size === 1 && !wasMultiTouch && !tapMoved && tapCandidate) {
+    selectMarker(tapCandidate.dataset.id, true);
+  }
+  endPointer(e);
 });
 function endPointer(e) {
   activePointers.delete(e.pointerId);
   if (activePointers.size < 2) pinchLastDist = 0;
-  if (activePointers.size === 0) { dragging=false; viewport.classList.remove('dragging'); }
+  if (activePointers.size === 0) { dragging=false; viewport.classList.remove('dragging'); tapCandidate = null; }
 }
-viewport.addEventListener('pointerup', endPointer);
 viewport.addEventListener('pointercancel', endPointer);
 viewport.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 0.89); }, {passive:false});
 
