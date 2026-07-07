@@ -116,6 +116,16 @@
   .cloudStatus.ok { border-color:rgba(34,197,94,.55); color:#bbf7d0; }
   .cloudStatus.warn { border-color:rgba(250,204,21,.55); color:#fef08a; }
   .cloudStatus.bad { border-color:rgba(251,113,133,.55); color:#fecdd3; }
+  .pfTable-wrap { overflow-x:auto; margin-top:8px; }
+  .pfTable { width:100%; border-collapse:collapse; font-size:11px; min-width:340px; }
+  .pfTable th, .pfTable td { padding:4px 5px; text-align:center; border:1px solid rgba(148,163,184,.25); }
+  .pfTable th { background:#0b1220; color:#cbd5e1; font-weight:700; font-size:9.5px; text-transform:uppercase; letter-spacing:.02em; }
+  .pfTable td.pfCrop { text-align:left; font-weight:700; color:var(--text); white-space:nowrap; }
+  .pfTags { display:block; font-size:9px; font-weight:600; color:var(--muted); margin-top:1px; white-space:nowrap; }
+  .pfCell { display:block; border-radius:6px; padding:3px 2px; font-weight:700; line-height:1.5; }
+  .pfCell small { display:block; font-weight:500; opacity:.85; font-size:9.5px; }
+  .pfOver-yes { color:#fef08a; font-weight:700; }
+  .pfOver-no { color:var(--muted); }
   .mobileToggle { display:none; }
   @media (max-width: 880px) {
     .app { grid-template-columns:1fr; }
@@ -151,6 +161,7 @@
       <button type="button" class="tabBtn active" data-tab="map" role="tab" aria-selected="true"><i class="ti ti-map" aria-hidden="true"></i>Map</button>
       <button type="button" class="tabBtn" data-tab="fields" role="tab" aria-selected="false"><i class="ti ti-list-details" aria-hidden="true"></i>Fields</button>
       <button type="button" class="tabBtn" data-tab="cloud" role="tab" aria-selected="false"><i class="ti ti-cloud" aria-hidden="true"></i>Cloud</button>
+      <button type="button" class="tabBtn" data-tab="guide" role="tab" aria-selected="false"><i class="ti ti-leaf" aria-hidden="true"></i>Guide</button>
     </div>
 
     <div class="tabPanel active" data-panel="map">
@@ -262,6 +273,39 @@
         <div id="cloudStatus" class="cloudStatus">Cloud is not set up yet. Local saving still works.</div>
       </div>
     </div>
+
+    <div class="tabPanel" data-panel="guide">
+      <div class="card">
+        <div class="cloudStatus warn">
+          <b>&#9888; Mod required, not base game</b><br>
+          Everything on this tab (soil texture, pH targets, nitrogen targets) comes from the
+          <b>Precision Farming</b> DLC/mod for Farming Simulator 25. None of this applies if you're
+          playing without that mod installed &mdash; it is not part of base FS25.
+        </div>
+      </div>
+
+      <div class="card">
+        <b>Soil types</b>
+        <p class="hint">Target pH and base yield multiplier per soil texture (Precision Farming).</p>
+        <div id="pfSoilTable"></div>
+      </div>
+
+      <div class="card">
+        <b>Nitrogen fertilization guide</b>
+        <p class="hint">N Target (ideal nitrogen level) and N Reduction (the level below which yield starts dropping) per crop, per soil texture. Crops marked <span class="badge">OVERFERT</span> can benefit from being fertilized past the target; <span class="badge">HARVESTFERT</span> crops can also be fertilized again after harvest.</p>
+        <div id="pfNitrogenTable"></div>
+      </div>
+
+      <div class="card">
+        <b>Fertilizer headroom &amp; over-fertilization</b>
+        <p class="hint">"Net left" is roughly how much more nitrogen (in spreader units) a field can still take after reaching N Target before it's wasted. "Over-fert effect?" shows whether pushing past target actually changes anything for that crop.</p>
+        <div id="pfHeadroomTable"></div>
+      </div>
+
+      <div class="card">
+        <p class="hint">This guide is a reference starting point and may be refined further &mdash; if any numbers look off for a crop/soil combo, let Keiran know and it'll get corrected here for everyone.</p>
+      </div>
+    </div>
   </aside>
 
   <main aria-label="Interactive Kinlaig farm map">
@@ -304,6 +348,95 @@ const soilLegend = [
   ["#a855f7", "High alkaline", "pH is high"],
   ["#64748b", "Unknown soil", "add pH and nitrogen later"]
 ];
+// Precision Farming reference data (mod/DLC only, not base FS25). Soil types in a fixed
+// column order used across all three tables below.
+const pfSoilTypes = ["Loamy sand", "Sandy loam", "Loam", "Silty clay"];
+const pfSoilProps = {
+  "Loamy sand": { ph: 6.00, maxYield: 80 },
+  "Sandy loam": { ph: 6.50, maxYield: 100 },
+  "Loam":       { ph: 6.75, maxYield: 125 },
+  "Silty clay": { ph: 7.00, maxYield: 90 }
+};
+// target/reduction arrays are in pfSoilTypes order: [Loamy sand, Sandy loam, Loam, Silty clay]
+const pfNitrogen = [
+  { crop:"Wheat",         tags:[],                          target:[140,180,200,160], reduction:[140,180,180,160] },
+  { crop:"Barley",        tags:[],                          target:[120,160,180,140], reduction:[100,120,160,100] },
+  { crop:"Canola",        tags:[],                          target:[140,180,200,160], reduction:[140,160,180,160] },
+  { crop:"Oat",           tags:[],                          target:[80,100,140,100],  reduction:[60,80,120,80] },
+  { crop:"Maize (Corn)",  tags:[],                          target:[120,160,200,180], reduction:[100,140,180,140] },
+  { crop:"Sunflower",     tags:[],                          target:[60,80,120,80],    reduction:[40,60,80,60] },
+  { crop:"Soybean",       tags:["OVERFERT","HARVESTFERT"],  target:[0,0,0,0],         reduction:[0,0,0,0] },
+  { crop:"Potato",        tags:["OVERFERT"],                target:[100,120,160,140], reduction:[80,100,120,120] },
+  { crop:"Sugar Beet",    tags:["OVERFERT"],                target:[120,140,180,160], reduction:[100,120,140,120] },
+  { crop:"Sugarcane",     tags:[],                          target:[120,160,200,180], reduction:[100,140,160,120] },
+  { crop:"Cotton",        tags:[],                          target:[80,100,120,100],  reduction:[60,60,100,80] },
+  { crop:"Sorghum",       tags:[],                          target:[100,120,160,140], reduction:[80,100,120,120] },
+  { crop:"Poplar",        tags:["OVERFERT","HARVESTFERT"],  target:[120,160,180,140], reduction:[100,120,160,120] },
+  { crop:"Grass",         tags:["OVERFERT","HARVESTFERT"],  target:[50,55,65,65],     reduction:[40,40,50,55] }
+];
+// netLeft/over are also in pfSoilTypes order; this table has its own crop list (shares most
+// crops with pfNitrogen, plus Oilseed Radish which only appears here).
+const pfHeadroom = [
+  { crop:"Wheat",          netLeft:[0,20,20,0],   over:true },
+  { crop:"Barley",         netLeft:[0,20,20,20],  over:true },
+  { crop:"Oat",            netLeft:[20,20,20,20], over:true },
+  { crop:"Canola",         netLeft:[0,20,20,0],   over:true },
+  { crop:"Maize (Corn)",   netLeft:[20,20,20,40], over:true },
+  { crop:"Grass",          netLeft:[20,20,20,20], over:true },
+  { crop:"Sunflower",      netLeft:[20,20,20,20], over:true },
+  { crop:"Soybean",        netLeft:[0,0,0,0],     over:false },
+  { crop:"Potato",         netLeft:[20,20,40,20], over:false },
+  { crop:"Sugar Beet",     netLeft:[20,20,40,20], over:false },
+  { crop:"Cotton",         netLeft:[20,40,20,20], over:true },
+  { crop:"Poplar",         netLeft:[20,40,20,20], over:false },
+  { crop:"Sugarcane",      netLeft:[20,20,40,20], over:true },
+  { crop:"Oilseed Radish", netLeft:[40,40,40,40], over:false }
+];
+function pfHeatColor(v) {
+  if (v <= 0) return { bg:'#ef4444', fg:'#fff' };
+  if (v <= 70) return { bg:'#f97316', fg:'#1a1200' };
+  if (v <= 110) return { bg:'#facc15', fg:'#1a1200' };
+  if (v <= 150) return { bg:'#a3e635', fg:'#132000' };
+  if (v <= 190) return { bg:'#22c55e', fg:'#04170c' };
+  return { bg:'#14b8a6', fg:'#03231d' };
+}
+function pfCell(value, sub) {
+  const c = pfHeatColor(value);
+  const subHtml = sub != null ? `<small>${escapeHTML(String(sub))}</small>` : '';
+  return `<td><span class="pfCell" style="background:${c.bg};color:${c.fg}">${escapeHTML(String(value))}${subHtml}</span></td>`;
+}
+function renderPFSoilTable() {
+  const el = document.getElementById('pfSoilTable');
+  if (!el) return;
+  const rows = pfSoilTypes.map(s => {
+    const p = pfSoilProps[s];
+    return `<tr><td class="pfCrop">${escapeHTML(s)}</td><td>${p.ph.toFixed(2)}</td><td>${p.maxYield}%</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead><tr><th>Soil type</th><th>Target pH</th><th>Base yield</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderPFNitrogenTable() {
+  const el = document.getElementById('pfNitrogenTable');
+  if (!el) return;
+  const head = `<tr><th>Crop</th>${pfSoilTypes.map(s => `<th>${escapeHTML(s)}</th>`).join('')}</tr>`;
+  const rows = pfNitrogen.map(row => {
+    const tagsHtml = row.tags.length ? `<span class="pfTags">${row.tags.join(' &middot; ')}</span>` : '';
+    const cells = row.target.map((t, i) => pfCell(t, `red ${row.reduction[i]}`)).join('');
+    return `<tr><td class="pfCrop">${escapeHTML(row.crop)}${tagsHtml}</td>${cells}</tr>`;
+  }).join('');
+  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div><p class="hint" style="margin-top:6px">Each cell: N Target, with N Reduction level below it.</p>`;
+}
+function renderPFHeadroomTable() {
+  const el = document.getElementById('pfHeadroomTable');
+  if (!el) return;
+  const head = `<tr><th>Crop</th>${pfSoilTypes.map(s => `<th>${escapeHTML(s)}</th>`).join('')}<th>Over-fert effect?</th></tr>`;
+  const rows = pfHeadroom.map(row => {
+    const cells = row.netLeft.map(n => `<td>${n}</td>`).join('');
+    const overHtml = row.over ? '<span class="pfOver-yes">Yes</span>' : '<span class="pfOver-no">No</span>';
+    return `<tr><td class="pfCrop">${escapeHTML(row.crop)}</td>${cells}<td>${overHtml}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+}
+
 let mapMode = localStorage.getItem('kinlaig_fs25_map_mode_v1') || 'owner';
 
 let plans = JSON.parse(localStorage.getItem('kinlaig_fs25_clean_plans_v1') || '{}');
@@ -1019,6 +1152,7 @@ document.getElementById('clearAll').onclick = () => { if (confirm('Clear all sav
 window.addEventListener('resize', fitMap);
 
 createGrid(); updateModeButtons(); renderModeLegend(); initCloudUI(); renderOwners(); renderMarkers(); updateStats(); renderList(); fitMap();
+renderPFSoilTable(); renderPFNitrogenTable(); renderPFHeadroomTable();
 </script>
 </body>
 </html>
