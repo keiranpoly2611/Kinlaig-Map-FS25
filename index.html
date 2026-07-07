@@ -371,7 +371,8 @@ const statusColors = {
 };
 const priorityColors = {"Low":"#22c55e", "Medium":"#facc15", "High":"#f97316", "Urgent":"#ef4444"};
 const soilLegend = [
-  ["#22c55e", "Soil OK", "pH and nitrogen look good"],
+  ["#22c55e", "Soil OK / on target", "pH and nitrogen look good"],
+  ["#a3e635", "Below N target", "not losing yield yet"],
   ["#facc15", "Needs nitrogen", "nitrogen is low/missing"],
   ["#38bdf8", "Low pH / acidic", "lime may be needed"],
   ["#a855f7", "High alkaline", "pH is high"],
@@ -709,7 +710,7 @@ function saveOwners() {
 function getPlan(id) { return plans[id] || {}; }
 function getOwner(id) { return id && owners[id] ? owners[id] : null; }
 function ownerName(id) { const o = getOwner(id); return o ? o.name : ''; }
-function hasPlan(id) { const p = plans[id] || {}; return !!(p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.priority || p.nextJob || p.notes); }
+function hasPlan(id) { const p = plans[id] || {}; return !!(p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes); }
 function groupName(g) { return g === 'fields' ? 'Field' : 'Land/Area'; }
 function hexToRgba(hex, alpha=0.22) {
   const clean = String(hex || '#38bdf8').replace('#','');
@@ -753,7 +754,40 @@ function classifyPH(value) {
   if (n > 7.7) return 'alkaline';
   return 'good';
 }
+function pfCropEntry(cropName) { return pfNitrogen.find(r => r.crop === cropName) || null; }
+// When the field's crop and soil texture are both known and Precision Farming has data for
+// that crop, give an exact target-based read instead of the generic low/medium/high guess.
+function getPrecisionSoilInfo(p) {
+  const soilIdx = pfSoilTypes.indexOf(p.soilTexture);
+  const cropEntry = p.crop ? pfCropEntry(p.crop) : null;
+  if (!cropEntry || soilIdx === -1) return null;
+  const target = cropEntry.target[soilIdx];
+  const reduction = cropEntry.reduction[soilIdx];
+  const phTarget = pfSoilProps[p.soilTexture].ph;
+  const actualN = parseFirstNumber(p.nitrogen);
+  const actualPH = parseFirstNumber(p.alkaline);
+  const cropTag = `${p.crop} on ${p.soilTexture}`;
+  if (actualN == null && actualPH == null) {
+    return {color:'#64748b', label:'Add pH/N readings', detail:`Target: ${phTarget.toFixed(2)} pH, ${target} N (${cropTag})`};
+  }
+  if (actualPH != null && Math.abs(actualPH - phTarget) > 0.3) {
+    const dir = actualPH < phTarget ? 'Low pH' : 'High pH';
+    return {color:'#38bdf8', label:dir, detail:`${actualPH} vs ${phTarget.toFixed(2)} target (${cropTag})`};
+  }
+  if (actualN != null && actualN < reduction) {
+    return {color:'#facc15', label:'Nitrogen low', detail:`${actualN} vs ${target} N target (${cropTag})`};
+  }
+  if (actualN != null && actualN < target) {
+    return {color:'#a3e635', label:'Below N target', detail:`${actualN} vs ${target} N target (${cropTag})`};
+  }
+  if (actualN != null) {
+    return {color:'#22c55e', label:'On target', detail:`${actualN}/${target} N (${cropTag})`};
+  }
+  return {color:'#64748b', label:'Add nitrogen reading', detail:`Target: ${target} N (${cropTag})`};
+}
 function getSoilInfo(p) {
+  const precise = getPrecisionSoilInfo(p);
+  if (precise) return precise;
   const ph = classifyPH(p.alkaline);
   const n = classifyNitrogen(p.nitrogen);
   if (ph === 'acidic') return {color:'#38bdf8', label:'Low pH', detail:'Acidic / lime'};
@@ -766,7 +800,7 @@ function hasRelevantModeData(id) {
   const p = getPlan(id);
   if (mapMode === 'owner') return !!getOwner(p.owner);
   if (mapMode === 'crop') return !!p.crop;
-  if (mapMode === 'soil') return !!(p.alkaline || p.nitrogen);
+  if (mapMode === 'soil') return !!(p.alkaline || p.nitrogen || p.soilTexture);
   if (mapMode === 'work') return !!(p.priority || p.status || p.nextJob);
   return hasPlan(id);
 }
@@ -972,12 +1006,16 @@ function renderSelected() {
         <input id="sizeTxt" value="${escapeHTML(p.size || '')}" placeholder="Example: 2.45 ha" />
       </div>
       <div>
+        <label>Soil texture <span class="tiny">(Precision Farming)</span></label>
+        <select id="soilTextureSel">${optionHTML(pfSoilTypes, p.soilTexture || '')}</select>
+      </div>
+      <div>
         <label>Alkaline / pH</label>
-        <input id="alkalineTxt" value="${escapeHTML(p.alkaline || '')}" placeholder="Example: Good / 6.5 pH" />
+        <input id="alkalineTxt" value="${escapeHTML(p.alkaline || '')}" placeholder="Example: 6.5" />
       </div>
       <div>
         <label>Nitrogen</label>
-        <input id="nitrogenTxt" value="${escapeHTML(p.nitrogen || '')}" placeholder="Example: 80 kg N/ha, low, medium, high" />
+        <input id="nitrogenTxt" value="${escapeHTML(p.nitrogen || '')}" placeholder="Example: 140" />
       </div>
       <div>
         <label>Work priority</label>
@@ -988,6 +1026,7 @@ function renderSelected() {
         <input id="nextJobTxt" value="${escapeHTML(p.nextJob || '')}" placeholder="Example: lime, fertilise, harvest, sell bales" />
       </div>
     </div>
+    <p class="hint" style="margin-top:6px">Set Crop, Soil texture, pH and Nitrogen together to get an exact Precision Farming target read in Soil View instead of a generic guess. Leave Soil texture blank if you're not using that mod.</p>
     <label>Notes</label><textarea id="notesTxt" placeholder="Example: Buy next, plant barley, contract only, good grass field...">${escapeHTML(p.notes || '')}</textarea>
     <div class="row" style="margin-top:10px">
       <button class="primary" id="saveSel">Save</button>
@@ -999,6 +1038,7 @@ function renderSelected() {
       status:document.getElementById('statusSel').value,
       crop:document.getElementById('cropSel').value,
       size:document.getElementById('sizeTxt').value,
+      soilTexture:document.getElementById('soilTextureSel').value,
       alkaline:document.getElementById('alkalineTxt').value,
       nitrogen:document.getElementById('nitrogenTxt').value,
       priority:document.getElementById('prioritySel').value,
@@ -1012,7 +1052,7 @@ function renderSelected() {
 }
 function updateStats() {
   const vals = Object.values(plans);
-  document.getElementById('plannedCount').textContent = vals.filter(p => p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.priority || p.nextJob || p.notes).length;
+  document.getElementById('plannedCount').textContent = vals.filter(p => p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes).length;
   document.getElementById('ownedCount').textContent = vals.filter(p => p.owner).length;
 }
 function countOwnerAssignments(ownerId) {
