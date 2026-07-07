@@ -116,14 +116,14 @@
   .cloudStatus.ok { border-color:rgba(34,197,94,.55); color:#bbf7d0; }
   .cloudStatus.warn { border-color:rgba(250,204,21,.55); color:#fef08a; }
   .cloudStatus.bad { border-color:rgba(251,113,133,.55); color:#fecdd3; }
-  .pfTable-wrap { overflow-x:auto; margin-top:8px; }
-  .pfTable { width:100%; border-collapse:collapse; font-size:11px; min-width:340px; }
-  .pfTable th, .pfTable td { padding:4px 5px; text-align:center; border:1px solid rgba(148,163,184,.25); }
-  .pfTable th { background:#0b1220; color:#cbd5e1; font-weight:700; font-size:9.5px; text-transform:uppercase; letter-spacing:.02em; }
-  .pfTable td.pfCrop { text-align:left; font-weight:700; color:var(--text); white-space:nowrap; }
-  .pfTags { display:block; font-size:9px; font-weight:600; color:var(--muted); margin-top:1px; white-space:nowrap; }
-  .pfCell { display:block; border-radius:6px; padding:3px 2px; font-weight:700; line-height:1.5; }
-  .pfCell small { display:block; font-weight:500; opacity:.85; font-size:9.5px; }
+  .refTable-wrap { overflow-x:auto; margin-top:8px; }
+  .refTable { width:100%; border-collapse:collapse; font-size:11px; min-width:340px; }
+  .refTable th, .refTable td { padding:4px 5px; text-align:center; border:1px solid rgba(148,163,184,.25); }
+  .refTable th { background:#0b1220; color:#cbd5e1; font-weight:700; font-size:9.5px; text-transform:uppercase; letter-spacing:.02em; }
+  .refTable td.refName { text-align:left; font-weight:700; color:var(--text); white-space:nowrap; }
+  .refTags { display:block; font-size:9px; font-weight:600; color:var(--muted); margin-top:1px; white-space:nowrap; }
+  .refCell { display:block; border-radius:6px; padding:3px 2px; font-weight:700; line-height:1.5; }
+  .refCell small { display:block; font-weight:500; opacity:.85; font-size:9.5px; }
   .pfOver-yes { color:#fef08a; font-weight:700; }
   .pfOver-no { color:var(--muted); }
   .mobileToggle { display:none; }
@@ -276,9 +276,21 @@
 
     <div class="tabPanel" data-panel="guide">
       <div class="card">
+        <b>Crop &amp; soil guide</b>
+        <p class="hint">Two parts: a <b>vanilla</b> crop guide that applies with no mods at all, then a <b>Precision Farming</b> section below that only applies if that DLC/mod is installed and enabled. They're kept separate on purpose so it's always clear which parts need the mod.</p>
+      </div>
+
+      <div class="card">
+        <b>Vanilla crop guide (base game, no mods needed)</b>
+        <p class="hint">Planting/harvest windows, required equipment, and approximate sale price per 1000L for every crop in base FS25. Growth windows assume the default (non-seasonal) calendar.</p>
+        <div id="vanillaCropTable"></div>
+        <p class="hint" style="margin-top:6px">Figures gathered from community FS25 guides as a reference starting point &mdash; treat exact prices/yields as approximate, they can vary with game version and economy difficulty.</p>
+      </div>
+
+      <div class="card">
         <div class="cloudStatus warn">
           <b>&#9888; Mod required, not base game</b><br>
-          Everything on this tab (soil texture, pH targets, nitrogen targets) comes from the
+          Everything below this point (soil texture, pH targets, nitrogen targets) comes from the
           <b>Precision Farming</b> DLC/mod for Farming Simulator 25. None of this applies if you're
           playing without that mod installed &mdash; it is not part of base FS25.
         </div>
@@ -298,7 +310,7 @@
 
       <div class="card">
         <b>Fertilizer headroom &amp; over-fertilization</b>
-        <p class="hint">"Net left" is roughly how much more nitrogen (in spreader units) a field can still take after reaching N Target before it's wasted. "Over-fert effect?" shows whether pushing past target actually changes anything for that crop.</p>
+        <p class="hint">"Net left" is roughly how much more nitrogen (in spreader units) a field can still take after reaching N Target before it's wasted. "Over-fert effect?" shows whether pushing past target actually changes anything for that crop. <b>Oilseed Radish</b> is a Precision-Farming-only cover crop &mdash; it doesn't exist as a sellable crop in vanilla, it's grown between seasons to fix nitrogen and earn an eco subsidy.</p>
         <div id="pfHeadroomTable"></div>
       </div>
 
@@ -392,6 +404,42 @@ const pfHeadroom = [
   { crop:"Sugarcane",      netLeft:[20,20,40,20], over:true },
   { crop:"Oilseed Radish", netLeft:[40,40,40,40], over:false }
 ];
+// Vanilla FS25 crop guide - applies with no mods. Gathered from community FS25 guides as a
+// starting reference; treat exact yields/prices as approximate.
+const vanillaCrops = [
+  { crop:"Wheat",          category:"Grain",     plant:"Sep-Oct", harvest:"Jul-Aug", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$1,011" },
+  { crop:"Barley",         category:"Grain",     plant:"Sep-Oct", harvest:"Jun-Jul", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$939" },
+  { crop:"Canola",         category:"Grain",     plant:"Aug-Sep", harvest:"Jul-Aug", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$1,809" },
+  { crop:"Oat",            category:"Grain",     plant:"Mar-Apr", harvest:"Jul-Aug", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$1,596" },
+  { crop:"Sorghum",        category:"Grain",     plant:"Apr-May", harvest:"Aug-Sep", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$1,290" },
+  { crop:"Soybean",        category:"Grain",     plant:"Apr-May", harvest:"Oct-Nov", equipment:"Seeder to plant; combine harvester (grain header) to harvest", price:"$2,334" },
+  { crop:"Long Grain Rice",category:"Grain",     plant:"Apr",     harvest:"Sep",     equipment:"Seeder to plant; combine harvester to harvest (no flooding needed)", price:"$1,589" },
+  { crop:"Maize (Corn)",   category:"Grain",     plant:"Apr-May", harvest:"Oct-Nov", equipment:"Precision planter; combine with corn header to harvest", price:"$1,140" },
+  { crop:"Sunflower",      category:"Grain",     plant:"Mar-Apr", harvest:"Oct-Nov", equipment:"Precision planter; combine with sunflower/corn header to harvest", price:"$2,019" },
+  { crop:"Potato",         category:"Root",      plant:"Mar-Apr", harvest:"Aug-Oct", equipment:"Potato planter; weeder; potato harvester (e.g. Grimme/Ropa)", price:"$516" },
+  { crop:"Sugar Beet",     category:"Root",      plant:"Mar-Apr", harvest:"Oct-Nov", equipment:"Planter; defoliator; weeder; beet harvester (e.g. Agrifac/HOLMER/Ropa)", price:"$366" },
+  { crop:"Red Beet",       category:"Vegetable", plant:"Apr-Jun", harvest:"Aug-Nov", equipment:"Planter; weeder; beet harvester", price:"$366" },
+  { crop:"Carrots",        category:"Vegetable", plant:"Apr-Jul", harvest:"Aug-Nov", equipment:"Subsoiler; planter; weeder; Dewulf-type harvester", price:"$396" },
+  { crop:"Parsnips",       category:"Vegetable", plant:"Apr-Jun", harvest:"Aug-Oct", equipment:"Subsoiler; planter; weeder; Dewulf-type harvester", price:"$393" },
+  { crop:"Onions",         category:"Vegetable", plant:"Mar-Apr", harvest:"Aug-Sep", equipment:"Precision planter; haulm remover; weeder; potato harvester w/ onion head", price:"n/a" },
+  { crop:"Green Beans",    category:"Vegetable", plant:"Apr-Jun", harvest:"Aug-Nov", equipment:"Planter; weeder; specialised harvester (e.g. Oxbo)", price:"$2,160" },
+  { crop:"Peas",           category:"Vegetable", plant:"Mar-Apr", harvest:"Jul-Sep", equipment:"Seeder; weeder; specialised harvester (e.g. Oxbo)", price:"$3,119" },
+  { crop:"Spinach",        category:"Vegetable", plant:"Mar-May", harvest:"year-round", equipment:"Seeder; weeder; specialised harvester (e.g. Oxbo)", price:"$660" },
+  { crop:"Rice",           category:"Special",   plant:"Apr-May", harvest:"Aug-Sep", equipment:"Requires a flooded field; dedicated rice planter/harvester", price:"$3,300" },
+  { crop:"Sugarcane",      category:"Special",   plant:"Mar-Apr", harvest:"Oct-Nov", equipment:"Dedicated planter; cultivator; weeder; dedicated sugarcane harvester", price:"$357" },
+  { crop:"Cotton",         category:"Special",   plant:"Feb-Mar", harvest:"Oct-Nov", equipment:"Planter; weeder; cotton picker; cotton trailer for round modules", price:"$3,756" },
+  { crop:"Grapes",         category:"Vineyard",  plant:"planted via build mode", harvest:"Sep-Oct", equipment:"Mulcher; subsoiler; sprayer for upkeep; dedicated grape harvester", price:"$1,809" },
+  { crop:"Olives",         category:"Vineyard",  plant:"planted via build mode", harvest:"Oct", equipment:"Mulcher; subsoiler; sprayer for upkeep; dedicated olive harvester", price:"$1,809" },
+  { crop:"Poplar",         category:"Forestry",  plant:"Mar-Aug", harvest:"year-round (multi-year)", equipment:"Dedicated tree planter (e.g. Damcon); forestry harvester or biobaler", price:"n/a (wood chips)" },
+  { crop:"Grass",          category:"Forage",    plant:"self-regenerating", harvest:"year-round", equipment:"Mower/forage harvester; no replanting needed", price:"n/a" },
+  { crop:"Oilseed Radish", category:"Cover crop", plant:"Mar-Oct", harvest:"n/a - not sold", equipment:"Seeder only; cultivated/mulched under rather than harvested", price:"Precision Farming only - see below" }
+];
+function renderVanillaCropTable() {
+  const el = document.getElementById('vanillaCropTable');
+  if (!el) return;
+  const rows = vanillaCrops.map(c => `<tr><td class="refName">${escapeHTML(c.crop)}<small style="display:block;color:var(--muted);font-weight:500">${escapeHTML(c.category)}</small></td><td>${escapeHTML(c.plant)}</td><td>${escapeHTML(c.harvest)}</td><td style="text-align:left">${escapeHTML(c.equipment)}</td><td>${escapeHTML(c.price)}</td></tr>`).join('');
+  el.innerHTML = `<div class="refTable-wrap"><table class="refTable"><thead><tr><th>Crop</th><th>Plant</th><th>Harvest</th><th>Equipment needed</th><th>Price/1000L</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 function pfHeatColor(v) {
   if (v <= 0) return { bg:'#ef4444', fg:'#fff' };
   if (v <= 70) return { bg:'#f97316', fg:'#1a1200' };
@@ -400,30 +448,30 @@ function pfHeatColor(v) {
   if (v <= 190) return { bg:'#22c55e', fg:'#04170c' };
   return { bg:'#14b8a6', fg:'#03231d' };
 }
-function pfCell(value, sub) {
+function refCell(value, sub) {
   const c = pfHeatColor(value);
   const subHtml = sub != null ? `<small>${escapeHTML(String(sub))}</small>` : '';
-  return `<td><span class="pfCell" style="background:${c.bg};color:${c.fg}">${escapeHTML(String(value))}${subHtml}</span></td>`;
+  return `<td><span class="refCell" style="background:${c.bg};color:${c.fg}">${escapeHTML(String(value))}${subHtml}</span></td>`;
 }
 function renderPFSoilTable() {
   const el = document.getElementById('pfSoilTable');
   if (!el) return;
   const rows = pfSoilTypes.map(s => {
     const p = pfSoilProps[s];
-    return `<tr><td class="pfCrop">${escapeHTML(s)}</td><td>${p.ph.toFixed(2)}</td><td>${p.maxYield}%</td></tr>`;
+    return `<tr><td class="refName">${escapeHTML(s)}</td><td>${p.ph.toFixed(2)}</td><td>${p.maxYield}%</td></tr>`;
   }).join('');
-  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead><tr><th>Soil type</th><th>Target pH</th><th>Base yield</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  el.innerHTML = `<div class="refTable-wrap"><table class="refTable"><thead><tr><th>Soil type</th><th>Target pH</th><th>Base yield</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function renderPFNitrogenTable() {
   const el = document.getElementById('pfNitrogenTable');
   if (!el) return;
   const head = `<tr><th>Crop</th>${pfSoilTypes.map(s => `<th>${escapeHTML(s)}</th>`).join('')}</tr>`;
   const rows = pfNitrogen.map(row => {
-    const tagsHtml = row.tags.length ? `<span class="pfTags">${row.tags.join(' &middot; ')}</span>` : '';
-    const cells = row.target.map((t, i) => pfCell(t, `red ${row.reduction[i]}`)).join('');
-    return `<tr><td class="pfCrop">${escapeHTML(row.crop)}${tagsHtml}</td>${cells}</tr>`;
+    const tagsHtml = row.tags.length ? `<span class="refTags">${row.tags.join(' &middot; ')}</span>` : '';
+    const cells = row.target.map((t, i) => refCell(t, `red ${row.reduction[i]}`)).join('');
+    return `<tr><td class="refName">${escapeHTML(row.crop)}${tagsHtml}</td>${cells}</tr>`;
   }).join('');
-  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div><p class="hint" style="margin-top:6px">Each cell: N Target, with N Reduction level below it.</p>`;
+  el.innerHTML = `<div class="refTable-wrap"><table class="refTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div><p class="hint" style="margin-top:6px">Each cell: N Target, with N Reduction level below it.</p>`;
 }
 function renderPFHeadroomTable() {
   const el = document.getElementById('pfHeadroomTable');
@@ -432,9 +480,9 @@ function renderPFHeadroomTable() {
   const rows = pfHeadroom.map(row => {
     const cells = row.netLeft.map(n => `<td>${n}</td>`).join('');
     const overHtml = row.over ? '<span class="pfOver-yes">Yes</span>' : '<span class="pfOver-no">No</span>';
-    return `<tr><td class="pfCrop">${escapeHTML(row.crop)}</td>${cells}<td>${overHtml}</td></tr>`;
+    return `<tr><td class="refName">${escapeHTML(row.crop)}</td>${cells}<td>${overHtml}</td></tr>`;
   }).join('');
-  el.innerHTML = `<div class="pfTable-wrap"><table class="pfTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+  el.innerHTML = `<div class="refTable-wrap"><table class="refTable"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
 }
 
 let mapMode = localStorage.getItem('kinlaig_fs25_map_mode_v1') || 'owner';
@@ -1152,7 +1200,7 @@ document.getElementById('clearAll').onclick = () => { if (confirm('Clear all sav
 window.addEventListener('resize', fitMap);
 
 createGrid(); updateModeButtons(); renderModeLegend(); initCloudUI(); renderOwners(); renderMarkers(); updateStats(); renderList(); fitMap();
-renderPFSoilTable(); renderPFNitrogenTable(); renderPFHeadroomTable();
+renderVanillaCropTable(); renderPFSoilTable(); renderPFNitrogenTable(); renderPFHeadroomTable();
 </script>
 </body>
 </html>
