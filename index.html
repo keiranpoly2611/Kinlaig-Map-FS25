@@ -563,6 +563,7 @@ let cloudAutoTimer = null;
 const ownerPalette = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#ef4444", "#eab308", "#14b8a6", "#ec4899", "#84cc16", "#6366f1"];
 let selected = null;
 let selectedOwnerFilter = null;
+let landSizeUnlockedForEdit = false;
 let scale = 1, tx = 0, ty = 0;
 let dragging = false, startX = 0, startY = 0, startTx = 0, startTy = 0;
 const activePointers = new Map();
@@ -779,7 +780,7 @@ function saveOwners() {
 function getPlan(id) { return plans[id] || {}; }
 function getOwner(id) { return id && owners[id] ? owners[id] : null; }
 function ownerName(id) { const o = getOwner(id); return o ? o.name : ''; }
-function hasPlan(id) { const p = plans[id] || {}; return !!(p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes); }
+function hasPlan(id) { const p = plans[id] || {}; return !!(p.owner || p.status || p.crop || p.size || p.landSize || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes); }
 function groupName(g) { return g === 'fields' ? 'Field' : 'Land/Area'; }
 function hexToRgba(hex, alpha=0.22) {
   const clean = String(hex || '#38bdf8').replace('#','');
@@ -1038,6 +1039,7 @@ function paintMarkers() {
 }
 function selectMarker(id, centre=false) {
   selected = markersData.find(m => m.id === id);
+  landSizeUnlockedForEdit = false;
   if (!selected) return;
   renderSelected();
   paintMarkers();
@@ -1062,6 +1064,7 @@ function renderSelected() {
   const card = document.getElementById('selectedCard');
   if (!selected) { card.innerHTML = `<h2 class="selectedTitle">Nothing selected</h2><p class="hint">Click a field or land number on the map.</p>`; return; }
   const p = getPlan(selected.id);
+  const landSizeIsLocked = !!p.landSize && p.landSizeLocked !== false && !landSizeUnlockedForEdit;
   card.innerHTML = `
     <h2 class="selectedTitle">${selected.title}</h2>
     <div class="tiny">${groupName(selected.group)} · x:${selected.x} y:${selected.y}</div>
@@ -1070,6 +1073,13 @@ function renderSelected() {
     <label>Status</label><select id="statusSel">${optionHTML(statusOptions, p.status || '')}</select>
     <label>Crop / use</label><select id="cropSel">${optionHTML(cropOptions, p.crop || '')}</select>
     <div class="detailsGrid">
+      <div>
+        <label>Land size <span class="tiny">(fixed)</span></label>
+        <div class="row" style="gap:6px; flex-wrap:nowrap;">
+          <input id="landSizeTxt" value="${escapeHTML(p.landSize || '')}" placeholder="Example: 3.10 ha" ${landSizeIsLocked ? 'disabled' : ''} style="flex:1;" />
+          <button type="button" id="landSizeLockBtn" title="${landSizeIsLocked ? 'Unlock to correct' : 'Locks automatically once saved'}" style="padding:9px 10px;"><i class="ti ${landSizeIsLocked ? 'ti-lock' : 'ti-lock-open'}" aria-hidden="true"></i></button>
+        </div>
+      </div>
       <div>
         <label>Field size</label>
         <input id="sizeTxt" value="${escapeHTML(p.size || '')}" placeholder="Example: 2.45 ha" />
@@ -1102,11 +1112,14 @@ function renderSelected() {
       <button id="clearSel">Clear marker</button>
     </div>`;
   document.getElementById('saveSel').onclick = () => {
+    const landSizeVal = document.getElementById('landSizeTxt').value;
     plans[selected.id] = {
       owner:document.getElementById('ownerSel').value,
       status:document.getElementById('statusSel').value,
       crop:document.getElementById('cropSel').value,
       size:document.getElementById('sizeTxt').value,
+      landSize:landSizeVal,
+      landSizeLocked: !!landSizeVal.trim(),
       soilTexture:document.getElementById('soilTextureSel').value,
       alkaline:document.getElementById('alkalineTxt').value,
       nitrogen:document.getElementById('nitrogenTxt').value,
@@ -1114,14 +1127,21 @@ function renderSelected() {
       nextJob:document.getElementById('nextJobTxt').value,
       notes:document.getElementById('notesTxt').value
     };
+    landSizeUnlockedForEdit = false;
     if (!hasPlan(selected.id)) delete plans[selected.id];
     savePlans(); renderOwners(); renderList(); renderSelected();
   };
-  document.getElementById('clearSel').onclick = () => { delete plans[selected.id]; savePlans(); renderOwners(); renderList(); renderSelected(); };
+  document.getElementById('landSizeLockBtn').onclick = () => {
+    if (!landSizeIsLocked) return;
+    landSizeUnlockedForEdit = true;
+    renderSelected();
+    document.getElementById('landSizeTxt').focus();
+  };
+  document.getElementById('clearSel').onclick = () => { delete plans[selected.id]; landSizeUnlockedForEdit = false; savePlans(); renderOwners(); renderList(); renderSelected(); };
 }
 function updateStats() {
   const vals = Object.values(plans);
-  document.getElementById('plannedCount').textContent = vals.filter(p => p.owner || p.status || p.crop || p.size || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes).length;
+  document.getElementById('plannedCount').textContent = vals.filter(p => p.owner || p.status || p.crop || p.size || p.landSize || p.alkaline || p.nitrogen || p.soilTexture || p.priority || p.nextJob || p.notes).length;
   document.getElementById('ownedCount').textContent = vals.filter(p => p.owner).length;
 }
 function countOwnerAssignments(ownerId) {
