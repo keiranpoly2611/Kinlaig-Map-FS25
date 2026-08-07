@@ -5,7 +5,7 @@
    (--bg #0b0f14, --panel #111827, --accent #1d9e75, etc.) so switching to
    daisyUI components doesn't change the look. */
 @plugin "daisyui/theme" {
-  name: "kinlaig";
+  name: "fs25-map";
   default: true;
   prefersdark: true;
   color-scheme: dark;

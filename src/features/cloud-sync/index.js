@@ -8,9 +8,10 @@ import * as store from '../../core/store.js';
 const SUPABASE_URL = 'https://aicyvaqkzqlijffqihzd.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_CwwYHTsXQPiQ-vJlO1_Onw_lo5WaAzE';
 
-let cloudToken = localStorage.getItem('kinlaig_fs25_cloud_token_v1') || '';
-let cloudUserName = localStorage.getItem('kinlaig_fs25_cloud_user_v1') || '';
-let autoCloud = localStorage.getItem('kinlaig_fs25_cloud_auto_v1') === 'true';
+const KEY_PREFIX = store.CLOUD_MAP_ID + '_fs25_';
+let cloudToken = localStorage.getItem(KEY_PREFIX + 'cloud_token_v1') || '';
+let cloudUserName = localStorage.getItem(KEY_PREFIX + 'cloud_user_v1') || '';
+let autoCloud = localStorage.getItem(KEY_PREFIX + 'cloud_auto_v1') === 'true';
 let lastCloudSeen = null;
 let cloudAutoTimer = null;
 
@@ -29,10 +30,10 @@ function saveCloudSettings() {
   cloudToken = getCloudToken();
   cloudUserName = getCloudUserName();
   autoCloud = !!document.getElementById('autoCloudToggle')?.checked;
-  localStorage.setItem('kinlaig_fs25_cloud_room_v1', store.getCloudRoomCode());
-  localStorage.setItem('kinlaig_fs25_cloud_token_v1', cloudToken);
-  localStorage.setItem('kinlaig_fs25_cloud_user_v1', cloudUserName);
-  localStorage.setItem('kinlaig_fs25_cloud_auto_v1', String(autoCloud));
+  localStorage.setItem(KEY_PREFIX + 'cloud_room_v1', store.getCloudRoomCode());
+  localStorage.setItem(KEY_PREFIX + 'cloud_token_v1', cloudToken);
+  localStorage.setItem(KEY_PREFIX + 'cloud_user_v1', cloudUserName);
+  localStorage.setItem(KEY_PREFIX + 'cloud_auto_v1', String(autoCloud));
   setCloudStatus(cloudToken ? 'Cloud setup saved on this device. Use Load from cloud or Upload current map.' : 'Shared edit code is empty. Local saving still works.', cloudToken ? 'ok' : 'warn');
 }
 
@@ -175,7 +176,7 @@ function initBackup() {
   document.getElementById('exportBtn').onclick = () => {
     const backup = store.backupObject();
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'kinlaig-fs25-farm-management-backup.json'; a.click(); URL.revokeObjectURL(a.href);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${store.CLOUD_MAP_ID}-fs25-farm-management-backup.json`; a.click(); URL.revokeObjectURL(a.href);
   };
   document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
   document.getElementById('importFile').onchange = async e => {
@@ -185,7 +186,7 @@ function initBackup() {
       store.applyBackupObject(imported);
     } catch (err) { alert('That JSON file could not be imported.'); }
   };
-  document.getElementById('clearAll').onclick = () => { if (confirm('Clear all saved Kinlaig plans?')) store.clearAllPlans(); };
+  document.getElementById('clearAll').onclick = () => { if (confirm('Clear all saved plans for this map?')) store.clearAllPlans(); };
 }
 
 export function initCloudSync() {
