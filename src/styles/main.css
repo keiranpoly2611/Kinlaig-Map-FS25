@@ -1,0 +1,155 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Custom dark theme matching the app's original hand-rolled palette
+   (--bg #0b0f14, --panel #111827, --accent #1d9e75, etc.) so switching to
+   daisyUI components doesn't change the look. */
+@plugin "daisyui/theme" {
+  name: "kinlaig";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: #0b0f14;
+  --color-base-200: #111827;
+  --color-base-300: #1f2937;
+  --color-base-content: #f1f5f2;
+
+  --color-primary: #1d9e75;
+  --color-primary-content: #e1f5ee;
+
+  --color-secondary: #534ab7;
+  --color-secondary-content: #f1f5f2;
+
+  --color-accent: #d85a30;
+  --color-accent-content: #fff1ec;
+
+  --color-neutral: #1f2937;
+  --color-neutral-content: #cbd5e1;
+
+  --color-info: #38bdf8;
+  --color-info-content: #04202e;
+
+  --color-success: #22c55e;
+  --color-success-content: #04170c;
+
+  --color-warning: #facc15;
+  --color-warning-content: #1a1200;
+
+  --color-error: #fb7185;
+  --color-error-content: #2a0a10;
+
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+:root {
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+.label { display: block; color: #cbd5e1; font-size: 12px; margin: 10px 0 5px; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.4) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,.35); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(29,158,117,.6); background-clip: padding-box; }
+
+@keyframes appFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.app-shell { animation: appFadeIn .4s var(--ease); }
+
+/* Tab panel fade-in, driven by the .fadein class app-shell toggles on switch */
+.tabPanel { display: none; opacity: 0; transform: translateY(4px); transition: opacity .2s var(--ease), transform .2s var(--ease); }
+.tabPanel.active { display: block; }
+.tabPanel.active.fadein { opacity: 1; transform: none; }
+
+/* Floating glassmorphic status pills - no daisyUI equivalent */
+.pill {
+  background: rgba(15,23,42,.72);
+  border: 1px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  color: white;
+  box-shadow: 0 12px 28px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Map pan/zoom surface */
+#viewport { cursor: grab; touch-action: none; }
+#viewport.dragging { cursor: grabbing; }
+#canvas { transform-origin: 0 0; will-change: transform; }
+#mapimg { user-select: none; -webkit-user-drag: none; }
+#grid { pointer-events: none; display: none; }
+.grid-line { position: absolute; background: rgba(255,255,255,.33); }
+.grid-label { position: absolute; color: white; font-size: 12px; font-weight: 700; text-shadow: 0 1px 3px black; background: rgba(0,0,0,.45); border-radius: 6px; padding: 2px 5px; }
+
+/* Field/land hitbox markers */
+.marker {
+  position: absolute; width: 30px; height: 22px; margin-left: -15px; margin-top: -11px; border-radius: 7px;
+  border: 2px solid rgba(255,255,255,.32); background: transparent; cursor: pointer; user-select: none;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+.marker-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  min-width: 18px; padding: 1px 5px; border-radius: 6px;
+  background: rgba(10,14,26,.94); border: 1px solid rgba(255,255,255,.4); box-shadow: 0 1px 3px rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff; letter-spacing: .2px; line-height: 1.3; pointer-events: none;
+}
+.marker:hover { border-color: #1d9e75; background: rgba(29,158,117,.18); box-shadow: 0 0 0 3px rgba(29,158,117,.18); z-index: 15; transform: scale(1.1); }
+.marker:focus-visible { outline: none; border-color: #1d9e75; background: rgba(29,158,117,.24); box-shadow: 0 0 0 4px rgba(29,158,117,.45); z-index: 30; }
+.marker.selected { border-color: #1d9e75; background: rgba(29,158,117,.24); z-index: 25; animation: markerPulse 1.8s ease-in-out infinite; }
+@keyframes markerPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(29,158,117,.26); }
+  50% { box-shadow: 0 0 0 9px rgba(29,158,117,.12); }
+}
+.marker.planned { border-color: #facc15; background: rgba(250,204,21,.16); box-shadow: 0 0 0 3px rgba(250,204,21,.18); }
+.owner-dot { display: none; position: absolute; left: -7px; top: -7px; width: 11px; height: 11px; border-radius: 999px; background: var(--owner-color, #38bdf8); border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,.65); pointer-events: none; }
+.owner-name { display: none; position: absolute; left: 50%; top: 24px; transform: translateX(-50%); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; background: rgba(15,23,42,.88); border: 1px solid var(--owner-color, #38bdf8); color: white; border-radius: 999px; padding: 2px 7px; font-size: 11px; font-weight: 800; text-shadow: 0 1px 2px black; pointer-events: none; }
+.marker.modeColoured { border-color: var(--mode-color, #38bdf8); background: var(--mode-bg, rgba(56,189,248,.16)); box-shadow: 0 0 0 7px var(--mode-bg, rgba(56,189,248,.16)); }
+.marker.modeColoured .owner-dot { display: block; background: var(--mode-color, #38bdf8); }
+#canvas.showModeLabels .marker.modeColoured .owner-name { display: block; border-color: var(--mode-color, #38bdf8); }
+#canvas.showHits .marker { border-color: rgba(29,158,117,.55); background: rgba(29,158,117,.10); }
+#canvas.showHits .marker.land { border-color: rgba(250,204,21,.45); background: rgba(250,204,21,.08); }
+
+/* Cloud/create-room status banner, 3 semantic tones */
+.cloudStatus { margin-top: 10px; padding: 8px 10px; border: 1px solid rgba(148,163,184,.4); border-radius: 12px; background: rgba(15,23,42,.55); color: #8b96a5; font-size: 13px; line-height: 1.35; }
+.cloudStatus.ok { border-color: rgba(34,197,94,.55); color: #bbf7d0; }
+.cloudStatus.warn { border-color: rgba(250,204,21,.55); color: #fef08a; }
+.cloudStatus.bad { border-color: rgba(251,113,133,.55); color: #fecdd3; }
+
+/* Scrollable clickable-row list (search results, owner field drill-down) */
+.list { max-height: 220px; overflow: auto; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; }
+.item { padding: 8px 10px; border-bottom: 1px solid rgba(148,163,184,.18); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.item:hover { background: #0b1220; }
+.item:last-child { border-bottom: 0; }
+.item:focus-visible { outline: 2px solid #1d9e75; outline-offset: -2px; background: #0b1220; }
+
+/* Precision Farming heat-mapped table cells (background/color set inline per-value) */
+.refCell { display: block; border-radius: 6px; padding: 3px 2px; font-weight: 700; line-height: 1.5; }
+.refCell small { display: block; font-weight: 500; opacity: .85; font-size: 9.5px; }
+.refTags { display: block; font-size: 9px; font-weight: 600; color: #8b96a5; margin-top: 1px; white-space: nowrap; }
+.pfOver-yes { color: #fef08a; font-weight: 700; }
+.pfOver-no { color: #8b96a5; }
+
+/* Mobile: sidebar becomes a slide-in drawer, toggled by .mobileToggle */
+.mobileToggle { display: none; }
+@media (max-width: 880px) {
+  .app-shell { grid-template-columns: 1fr; }
+  #sidebar { position: absolute; z-index: 80; inset: 0 auto 0 0; width: min(360px, 92vw); transform: translateX(-102%); transition: .2s ease; }
+  #sidebar.open { transform: translateX(0); }
+  .mobileToggle { display: block; z-index: 90; }
+  .pill { padding: 10px 14px; font-size: 14px; }
+}
